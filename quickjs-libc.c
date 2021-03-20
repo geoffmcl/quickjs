@@ -28,20 +28,34 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/time.h>
 #include <time.h>
 #include <signal.h>
 #include <limits.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #if defined(_WIN32)
-#include <windows.h>
-#include <conio.h>
-#include <utime.h>
+  #include <windows.h>
+  #include <conio.h>
+  #include <io.h>
+  #include <fcntl.h>
+  #include <sys/types.h>
+  #include <sys/stat.h>
+  #include <sys/utime.h>
+#include <direct.h> // for _getcwd, ...
+#include "win/dirent.h" // this is questionable!?!?
+  #ifndef PATH_MAX
+    #define PATH_MAX MAX_PATH
+  #endif
+  #define popen _popen
+  #define pclose _pclose
+#define getcwd _getcwd
+#define chdir _chdir
+#define mkdir _mkdir
 #else
+  #include <dirent.h>
+  #include <unistd.h>
+  #include <sys/time.h>
 #include <dlfcn.h>
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -457,8 +471,52 @@ typedef JSModuleDef *(JSInitModuleFunc)(JSContext *ctx,
 static JSModuleDef *js_module_loader_so(JSContext *ctx,
                                         const char *module_name)
 {
-    JS_ThrowReferenceError(ctx, "shared library modules are not supported yet");
-    return NULL;
+    //JS_ThrowReferenceError(ctx, "shared library modules are not supported yet");
+    //return NULL;
+    JSModuleDef *m;
+    HMODULE hd;//void *hd;
+      JSInitModuleFunc *init;
+      char *filename;
+
+      if (!strchr(module_name, '/')) {
+          /* must add a '/' so that the DLL is not searched in the
+             system library paths */
+          filename = js_malloc(ctx, strlen(module_name) + 2 + 1);
+          if (!filename)
+              return NULL;
+          strcpy(filename, "./");
+          strcpy(filename + 2, module_name);
+      } else {
+          filename = (char *)module_name;
+      }
+
+      /* C module */
+    hd = LoadLibraryA(filename);//hd = dlopen(filename, RTLD_NOW | RTLD_LOCAL);
+      if (filename != module_name)
+          js_free(ctx, filename);
+      if (hd == NULL) {
+          JS_ThrowReferenceError(ctx, "could not load module filename '%s' as shared library",
+                                 module_name);
+          goto fail;
+      }
+
+    init = (JSInitModuleFunc*)GetProcAddress(hd, "js_init_module");//dlsym(hd, "js_init_module");
+      if (!init) {
+          JS_ThrowReferenceError(ctx, "could not load module filename '%s': js_init_module not found",
+                                 module_name);
+          goto fail;
+      }
+
+      m = init(ctx, module_name);
+      if (!m) {
+          JS_ThrowReferenceError(ctx, "could not load module filename '%s': initialization error",
+                                 module_name);
+      fail:
+          if (hd)
+              FreeLibrary(hd);
+          return NULL;
+      }
+      return m;
 }
 #else
 static JSModuleDef *js_module_loader_so(JSContext *ctx,
@@ -564,12 +622,19 @@ int js_module_set_import_meta(JSContext *ctx, JSValueConst func_val,
     return 0;
 }
 
+#if defined(_WIN32)
+  #define NATIVE_LIBRARY_SUFFIX ".dll"
+#elif defined(__APPLE__)
+  #define NATIVE_LIBRARY_SUFFIX ".dylib"
+#elif defined(__linux__)
+  #define NATIVE_LIBRARY_SUFFIX ".so"
+#endif
 JSModuleDef *js_module_loader(JSContext *ctx,
                               const char *module_name, void *opaque)
 {
     JSModuleDef *m;
 
-    if (has_suffix(module_name, ".so")) {
+    if (has_suffix(module_name, NATIVE_LIBRARY_SUFFIX) || has_suffix(module_name, ".module")) {
         m = js_module_loader_so(ctx, module_name);
     } else {
         size_t buf_len;
@@ -1951,6 +2016,46 @@ static int64_t get_time_ms(void)
     return (uint64_t)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000);
 }
 #else
+#if defined(_MSC_VER)
+
+/* from: https://stackoverflow.com/questions/5404277/porting-clock-gettime-to-windows */
+int clock_gettime_wpc1(int dummy, struct timespec* ct)
+{
+#define EBILLION                             (1E9)
+    static BOOL g_first_time = 1;
+    static LARGE_INTEGER g_counts_per_sec;
+    LARGE_INTEGER count;
+
+    if (g_first_time)
+    {
+        g_first_time = 0;
+
+        if (0 == QueryPerformanceFrequency(&g_counts_per_sec))
+        {
+            g_counts_per_sec.QuadPart = 0;
+        }
+    }
+
+    if ((NULL == ct) || (g_counts_per_sec.QuadPart <= 0) ||
+        (0 == QueryPerformanceCounter(&count)))
+    {
+        return -1;
+    }
+
+    ct->tv_sec = count.QuadPart / g_counts_per_sec.QuadPart;
+    ct->tv_nsec = (long)(((count.QuadPart % g_counts_per_sec.QuadPart) * EBILLION) / g_counts_per_sec.QuadPart);
+
+    return 0;
+}
+
+
+static int64_t get_time_ms(void)
+{
+    struct timespec tv;
+    clock_gettime_wpc1(0, &tv);
+    return (int64_t)tv.tv_sec * 1000 + (tv.tv_nsec / 1000);
+}
+#else // !_MSC_VER
 /* more portable, but does not work if the date is updated */
 static int64_t get_time_ms(void)
 {
@@ -1958,6 +2063,7 @@ static int64_t get_time_ms(void)
     gettimeofday(&tv, NULL);
     return (int64_t)tv.tv_sec * 1000 + (tv.tv_usec / 1000);
 }
+#endif // _MSC_VER y/n
 #endif
 
 static void unlink_timer(JSRuntime *rt, JSOSTimer *th)
@@ -2532,6 +2638,16 @@ static JSValue js_os_stat(JSContext *ctx, JSValueConst this_val,
         JS_DefinePropertyValueStr(ctx, obj, "ctime",
                                   JS_NewInt64(ctx, timespec_to_ms(&st.st_ctimespec)),
                                   JS_PROP_C_W_E);
+#elif defined(ANDROID)
+        JS_DefinePropertyValueStr(ctx, obj, "atime",
+          JS_NewInt64(ctx, timespec_to_ms(&st.st_atime)),
+          JS_PROP_C_W_E);
+        JS_DefinePropertyValueStr(ctx, obj, "mtime",
+          JS_NewInt64(ctx, timespec_to_ms(&st.st_mtime)),
+          JS_PROP_C_W_E);
+        JS_DefinePropertyValueStr(ctx, obj, "ctime",
+          JS_NewInt64(ctx, timespec_to_ms(&st.st_ctime)),
+          JS_PROP_C_W_E);
 #else
         JS_DefinePropertyValueStr(ctx, obj, "atime",
                                   JS_NewInt64(ctx, timespec_to_ms(&st.st_atim)),
