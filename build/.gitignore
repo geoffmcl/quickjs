@@ -1,0 +1,14 @@
+*.vcxproj
+*.filters
+CMakeCache.txt
+CMakeFiles/*
+Debug/*
+Release/*
+*.dir/*
+bldlog-1.txt
+cmake_install.cmake
+qjscalc.c
+repl.c
+x64/*
+*.sln
+.vs/*
