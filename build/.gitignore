@@ -12,3 +12,8 @@ repl.c
 x64/*
 *.sln
 .vs/*
+Makefile
+*.a
+qjs
+qjsc
+

@@ -103,6 +103,26 @@ else()
     else()
         message(STATUS "*** Compiler is 'unix', but NO 'CMAKE_C_COMPILER_ID'")
     endif()
+    set(MSVC_LD_FLAGS "${MSVC_LD_FLAGS} -pthread")
+    # Explicitly link -lm on most Unices.
+    if(UNIX AND NOT APPLE AND NOT BEOS AND NOT HAIKU)
+        find_library(MATH_LIBRARY m)
+        if(MATH_LIBRARY)
+            message( STATUS "*** Explicitly adding maths lib ${MATH_LIBRARY} and dl lib ${CMAKE_DL_LIBS}")
+            list( APPEND add_LIBS ${MATH_LIBRARY} ${CMAKE_DL_LIBS})
+        else ()
+            message(FATAL_ERROR "*** UGH: match library NOT found")
+        endif ()
+    # For Windows and Mac, don't need to explicitly include the math library
+    endif()
+    find_package(Threads)
+    if (Threads_FOUND)
+        message(STATUS "*** Found Threads incs ${Threads_INCLUDE_DIR} libs ${Threads_LIBRARIES}")
+        list(APPEND add_LIBS ${Threads_LIBRARIES})
+    else ()
+        message(FATAL_ERROR "*** Threads NOT FOUND!")
+    endif ()
+    list(APPEND add_LIBS "-ldbus-1")
 endif()
 
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARNING_FLAGS} ${MSVC_FLAGS} -D_REENTRANT" )
@@ -111,6 +131,7 @@ set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MSVC_LD_FLAGS}" )
 
 add_definitions( -D_GNU_SOURCE )
 
+if(MSVC)
 # Once done this will define
 #  DIRENT_FOUND - System has dirent
 #  DIRENT_INCLUDE_DIRS - The dirent.h include directories
@@ -124,7 +145,6 @@ else()
     message(FATAL_ERROR "*** Dirent NOT FOUND")
 endif()
 
-if(NOT MINGW)
 # Once done this will define
 #  GETOPT_FOUND - System has GETOPT
 #  GETOPT_INCLUDE_DIRS - The getopt.h include directories
@@ -137,7 +157,7 @@ if(GETOPT_FOUND)
 else()
     message(FATAL_ERROR "*** Getopt NOT FOUND")
 endif()
-endif()
+endif(MSVC)
 
 # configuration file, if needed
 # configure_file( ${CMAKE_SOURCE_DIR}/config.h.cmake ${CMAKE_BINARY_DIR}/config.h )
@@ -164,6 +184,7 @@ set(LIB_HDRS
     ${dir}/quickjs-atom.h
     ${dir}/quickjs-libc.h
     ${dir}/quickjs-opcode.h
+    ${dir}/quickjs-version.h
     )
 if(USE_BIG_NUMBER)
     list(APPEND LIB_SRCS ${dir}/libbf.c)
@@ -202,13 +223,16 @@ install( TARGETS ${name}
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib )
 install(FILES ${LIB_HDRS} DESTINATION include/quickjs)
+if(MSVC)
 list(APPEND add_LIBS ${name})
+endif()
 
 # Total libs 2, exes 1
 #################################################
 ##### LIBRARIES 2 #####
 #################################################
 
+if(ADD_EXTRA_LIBS)
 # bjson LIBRARY from [tests],
 # have 1 C/C++ sources, 0 headers
 set(name bjson)
@@ -241,6 +265,7 @@ list(APPEND add_LIBS ${name})
 #    LIBRARY DESTINATION lib
 #    ARCHIVE DESTINATION lib )
 #install(FILES ${${name}_HDRS} DESTINATION include)
+endif(ADD_EXTRA_LIBS)
 
 #################################################
 ##### EXECUTABLE #####
@@ -249,8 +274,11 @@ set(name qjsc)
 set(dir .)
 set(${name}_SRCS
     ${dir}/qjsc.c
-    # ${LIB_SRCS}
     )
+    
+if(NOT MSVC)
+    list(APPEND ${name}_SRCS ${LIB_SRCS})
+endif()
 add_executable( ${name} ${${name}_SRCS} )
 if (add_LIBS OR extra_LIBS)
     target_link_libraries( ${name} ${add_LIBS} ${extra_LIBS} )
@@ -293,6 +321,9 @@ set(${name}_SRCS
     ${BLT_SRC}
     ${BLT_SRC2}
     )
+if(NOT MSVC)
+    list(APPEND ${name}_SRCS ${LIB_SRCS})
+endif()
 add_executable( ${name} ${${name}_SRCS} )
 if (add_LIBS OR extra_LIBS)
     target_link_libraries( ${name} ${add_LIBS} ${extra_LIBS} )
@@ -317,6 +348,7 @@ if (MSVC)
 endif ()
 endif()
 
+if(ADD_UNICODE_GEN)
 set(name unicode_gen)
 set(dir .)
 set(${name}_SRCS
@@ -330,5 +362,6 @@ endif ()
 if (MSVC)
     set_target_properties( ${name} PROPERTIES DEBUG_POSTFIX d )
 endif ()
+endif(ADD_UNICODE_GEN)
 
 # eof

@@ -41,6 +41,8 @@ set(DIRENT_LIBRARIES ${DIRENT_LIBRARY} )
 endif ()
 set(DIRENT_INCLUDE_DIRS ${DIRENT_INCLUDE_DIR} )
 
+message( STATUS "*** Results: inc '${DIRENT_INCLUDE_DIRS}', lib '${DIRENT_LIBRARIES}'")
+
 include(FindPackageHandleStandardArgs)
 # handle the QUIETLY and REQUIRED arguments and set DIRENT_FOUND to TRUE
 # if all listed variables are TRUE

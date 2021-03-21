@@ -1,2 +1,10 @@
 qjscalc.c
 repl.c
+libbjson.a
+libexamples.a
+libquickjs.a
+qjs
+qjsc
+Makefile
+install_manifest.txt
+

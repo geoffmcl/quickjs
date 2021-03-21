@@ -1,5 +1,5 @@
 #!/bin/sh
-#< build-me.sh - 20150925 - for edbrowse project
+#< build-me.sh - 20150925 - QuickJS, for edbrowse project
 BN="`basename $0`"
 TMPTIME=`date +%H:%M:%S`
 TMPDATE=`date +%Y/%m/%d`
@@ -7,6 +7,7 @@ TMPPRJ="edbrowse"
 BLDLOG="bldlog-1.txt"
 TMPBR="cmake-bld"
 TMPRPOJ="$TMPPRJ br: $TMPBR"
+TMPINST="../../install/qjs-ff"
 
 echo "$BN: Checking on branch '$TMPBR'..."
 chkbranch "$TMPBR"
@@ -37,7 +38,8 @@ fi
 ### ***** NOTE THIS INSTALL LOCATION ***** ###
 ### Change to suit your taste, environment ###
 ##############################################
-: ${TMPOPTS:="-DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX:-$HOME}\""}
+###: ${TMPOPTS:="-DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX:-$HOME}\""}
+TMPOPTS="-DCMAKE_INSTALL_PREFIX:PATH=\"$TMPINST\""
 #############################################
 # Use -DCMAKE_BUILD_TYPE=Debug to add gdb symbols
 # Use -DCMAKE_VERBOSE_MAKEFILE=ON
@@ -50,6 +52,7 @@ for arg; do
         *) TMPOPTS="$TMPOPTS $arg";;
     esac
 done
+
 echo "$BN: Build $TMPPROJ $TMPDATE $TMPTIME to $BLDLOG"
 echo "$BN: Build $TMPPROJ $TMPDATE $TMPTIME to $BLDLOG" > $BLDLOG
 
@@ -68,4 +71,7 @@ fi
 echo ""
 echo "$BN: appears a successful build... see $BLDLOG for details"
 echo ""
-echo "$BN: Time for 'make install' IF desired... to ${CMAKE_INSTALL_PREFIX:-$HOME}/bin"
+echo "$BN: Time for 'make install' IF desired... to '$TMPINST'..."
+
+# eof
+
