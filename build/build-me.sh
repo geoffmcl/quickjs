@@ -1,13 +1,14 @@
 #!/bin/sh
-#< build-me.sh - 20150925 - QuickJS, for edbrowse project
+#< build-me.sh - 20210321 - 20150925 - QuickJS, for edbrowse project
 BN="`basename $0`"
 TMPTIME=`date +%H:%M:%S`
 TMPDATE=`date +%Y/%m/%d`
-TMPPRJ="edbrowse"
+TMPPRJ="quickjs"
 BLDLOG="bldlog-1.txt"
 TMPBR="cmake-bld"
 TMPRPOJ="$TMPPRJ br: $TMPBR"
-TMPINST="../../install/qjs-ff"
+## TMPINST="../../install/qjs-ff"
+TMPINST="../../install"
 
 echo "$BN: Checking on branch '$TMPBR'..."
 chkbranch "$TMPBR"
@@ -57,12 +58,14 @@ echo "$BN: Build $TMPPROJ $TMPDATE $TMPTIME to $BLDLOG"
 echo "$BN: Build $TMPPROJ $TMPDATE $TMPTIME to $BLDLOG" > $BLDLOG
 
 echo "$BN: Doing: 'cmake .. $TMPOPTS' to $BLDLOG"
+echo "$BN: Doing: 'cmake .. $TMPOPTS' to $BLDLOG" >> $BLDLOG
 if ! eval cmake .. $TMPOPTS >> $BLDLOG 2>&1; then
     echo "$BN: cmake confiuration, generation error"
     exit 1
 fi
 
 echo "$BN: Doing: 'make' to $BLDLOG"
+echo "$BN: Doing: 'make' to $BLDLOG" >> $BLDLOG
 if ! make >> $BLDLOG 2>&1; then
     echo "$BN: make error - see $BLDLOG for details"
     exit 1

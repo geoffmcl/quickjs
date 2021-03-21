@@ -16,4 +16,5 @@ Makefile
 *.a
 qjs
 qjsc
+install_manifest.txt
 
