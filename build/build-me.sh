@@ -45,6 +45,8 @@ TMPOPTS="-DCMAKE_INSTALL_PREFIX:PATH=\"$TMPINST\""
 # Use -DCMAKE_BUILD_TYPE=Debug to add gdb symbols
 # Use -DCMAKE_VERBOSE_MAKEFILE=ON
 
+TMPOPTS="$TMPOPTS -DCMAKE_BUILD_TYPE=Release"
+
 # correctly quoted $@ is the default for shell for loops
 for arg; do
     case "$arg" in

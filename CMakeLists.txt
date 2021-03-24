@@ -31,7 +31,7 @@ add_definitions( -DCONFIG_VERSION="${VERSION_TEXT}" )
 option(USE_BIG_NUMBER "Set ON to include CONFIG_BIGNUM, libbf.c" ON )
 option(BUILD_SRCS "Set ON to use 'qjsc' to build 'C' sources" ON )
 option(ADD_TEST262 "Set ON to build 'run-test262' EXE" OFF )
- 
+
 # Allow developer to select is Dynamic or static library built
 set( LIB_TYPE STATIC )  # set default static
 option( BUILD_SHARED_LIB "Set ON to build shared Library (DLL)" OFF )
@@ -191,9 +191,10 @@ if(USE_BIG_NUMBER)
     #list(APPEND LIB_HDRS ${dir}/libbf.h)
     add_definitions( -DCONFIG_BIGNUM )
     message(STATUS "*** Option USE_BIG_NUMBER is ON")
-else()    
+else()
     message(STATUS "*** Option USE_BIG_NUMBER is OFF")
-endif ()
+endif()
+
 # quickjs LIBRARY [D:\Projects\quickjs],
 # have 10 C/C++ sources, 12 headers
 # QJS_LIB_OBJS=$(OBJDIR)/quickjs.o $(OBJDIR)/libregexp.o $(OBJDIR)/libunicode.o $(OBJDIR)/cutils.o $(OBJDIR)/quickjs-libc.o
@@ -217,15 +218,16 @@ if(USE_BIG_NUMBER)
     list(APPEND ${${name}_HDRS} ${dir}/libbf.h)
 endif()
 add_library( ${name} ${${name}_SRCS} ${${name}_HDRS} )
+if (add_LIBS OR extra_LIBS)
+    target_link_libraries( ${name} ${add_LIBS} ${extra_LIBS} )
+endif ()
+list(APPEND add_LIBS ${name})
 # deal with install, if any...
 install( TARGETS ${name}
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib )
 install(FILES ${LIB_HDRS} DESTINATION include/quickjs)
-if(MSVC)
-list(APPEND add_LIBS ${name})
-endif()
 
 # Total libs 2, exes 1
 #################################################
@@ -275,10 +277,6 @@ set(dir .)
 set(${name}_SRCS
     ${dir}/qjsc.c
     )
-    
-if(NOT MSVC)
-    list(APPEND ${name}_SRCS ${LIB_SRCS})
-endif()
 add_executable( ${name} ${${name}_SRCS} )
 if (add_LIBS OR extra_LIBS)
     target_link_libraries( ${name} ${add_LIBS} ${extra_LIBS} )
@@ -300,7 +298,7 @@ add_custom_command(OUTPUT ${BLT_SRC}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     DEPENDS ${CMAKE_SOURCE_DIR}/repl.js
     )
-    
+
 # ./qjsc -fbignum -c -o qjscalc.c qjscalc.js
 set(_FLAG)
 if(USE_BIG_NUMBER)
@@ -313,7 +311,7 @@ add_custom_command(OUTPUT ${BLT_SRC2}
     )
 #################################################
 endif()
-    
+
 set(name qjs)
 set(dir .)
 set(${name}_SRCS
@@ -321,9 +319,6 @@ set(${name}_SRCS
     ${BLT_SRC}
     ${BLT_SRC2}
     )
-if(NOT MSVC)
-    list(APPEND ${name}_SRCS ${LIB_SRCS})
-endif()
 add_executable( ${name} ${${name}_SRCS} )
 if (add_LIBS OR extra_LIBS)
     target_link_libraries( ${name} ${add_LIBS} ${extra_LIBS} )
